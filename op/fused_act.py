@@ -1,10 +1,12 @@
 import os
+import platform
 
 import torch
 from torch import nn
 from torch.autograd import Function
 from torch.utils.cpp_extension import load
 
+ldflags = ['c10_cuda.lib'] if platform.system() == 'Windows' else None
 
 module_path = os.path.dirname(__file__)
 fused = load(
@@ -13,6 +15,7 @@ fused = load(
         os.path.join(module_path, 'fused_bias_act.cpp'),
         os.path.join(module_path, 'fused_bias_act_kernel.cu'),
     ],
+    extra_ldflags=ldflags
 )
 
 

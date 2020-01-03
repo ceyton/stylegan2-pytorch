@@ -1,10 +1,12 @@
 import os
+import platform
 
 import torch
 from torch.nn import functional as F
 from torch.autograd import Function
 from torch.utils.cpp_extension import load
 
+ldflags = ['c10_cuda.lib'] if platform.system() == 'Windows' else None
 
 module_path = os.path.dirname(__file__)
 upfirdn2d_op = load(
@@ -13,6 +15,7 @@ upfirdn2d_op = load(
         os.path.join(module_path, "upfirdn2d.cpp"),
         os.path.join(module_path, "upfirdn2d_kernel.cu"),
     ],
+    extra_ldflags=ldflags
 )
 
 
