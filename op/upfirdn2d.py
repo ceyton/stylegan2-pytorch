@@ -2,7 +2,11 @@ import torch
 from torch.autograd import Function
 from torch.utils.cpp_extension import load
 
-upfirdn2d_op = load('upfirdn2d', sources=['op/upfirdn2d.cpp', 'op/upfirdn2d_kernel.cu'])
+import platform
+is_win = platform.system() == 'Windows'
+
+ldflags = ['c10_cuda.lib'] if is_win else None # '/NODEFAULTLIB:LIBCMT.LIB'
+upfirdn2d_op = load('upfirdn2d', sources=['op/upfirdn2d.cpp', 'op/upfirdn2d_kernel.cu'], extra_ldflags=ldflags)
 
 
 class UpFirDn2dBackward(Function):

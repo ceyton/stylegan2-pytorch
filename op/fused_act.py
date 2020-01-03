@@ -3,7 +3,11 @@ from torch import nn
 from torch.autograd import Function
 from torch.utils.cpp_extension import load
 
-fused = load('fused', sources=['op/fused_bias_act.cpp', 'op/fused_bias_act_kernel.cu'])
+import platform
+is_win = platform.system() == 'Windows'
+
+ldflags = ['c10_cuda.lib'] if is_win else None # '/NODEFAULTLIB:LIBCMT.LIB'
+fused = load('fused', sources=['op/fused_bias_act.cpp', 'op/fused_bias_act_kernel.cu'], extra_ldflags=ldflags)
 
 
 class FusedLeakyReLUFunctionBackward(Function):
