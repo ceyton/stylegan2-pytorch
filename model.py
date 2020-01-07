@@ -362,6 +362,14 @@ class ToRGB(nn.Module):
 
         return out
 
+# Wrapper that gives name to tensor
+class NamedTensor(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return x
+
 
 class Generator(nn.Module):
     def __init__(
@@ -402,6 +410,7 @@ class Generator(nn.Module):
             1024: 16 * channel_multiplier,
         }
 
+        self.strided_style = NamedTensor()
         self.input = ConstantInput(self.channels[4])
         self.conv1 = StyledConv(
             self.channels[4], self.channels[4], 3, style_dim, blur_kernel=blur_kernel
@@ -519,7 +528,7 @@ class Generator(nn.Module):
             latent = styles[0].unsqueeze(1).repeat(1, inject_index, 1)
             latent2 = styles[1].unsqueeze(1).repeat(1, self.n_latent - inject_index, 1)
 
-            latent = torch.cat([latent, latent2], 1)
+            latent = self.strided_style(torch.cat([latent, latent2], 1))
 
         out = self.input(latent)
         out = self.conv1(out, latent[:, 0], noise=noise[0])
