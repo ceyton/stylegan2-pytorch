@@ -370,6 +370,16 @@ class NamedTensor(nn.Module):
     def forward(self, x):
         return x
 
+# Give each style a unique name
+class StridedStyle(nn.ModuleList):
+    def __init__(self, n_latents):
+        super().__init__([NamedTensor() for _ in range(n_latents)])
+        self.n_latents = n_latents
+
+    def forward(self, x):
+        # x already strided
+        styles = [self[i](x[:, i, :]) for i in range(self.n_latents)]
+        return torch.stack(styles, dim=1)
 
 class Generator(nn.Module):
     def __init__(
@@ -410,7 +420,6 @@ class Generator(nn.Module):
             1024: 16 * channel_multiplier,
         }
 
-        self.strided_style = NamedTensor()
         self.input = ConstantInput(self.channels[4])
         self.conv1 = StyledConv(
             self.channels[4], self.channels[4], 3, style_dim, blur_kernel=blur_kernel
@@ -457,6 +466,7 @@ class Generator(nn.Module):
             in_channel = out_channel
 
         self.n_latent = self.log_size * 2 - 2
+        self.strided_style = StridedStyle(self.n_latent)
 
     def make_noise(self):
         device = self.input.input.device
