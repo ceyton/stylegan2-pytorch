@@ -1,13 +1,14 @@
 import torch
 from torch.autograd import Function
 from torch.utils.cpp_extension import load
-
 import platform
-is_win = platform.system() == 'Windows'
 
-ldflags = ['c10_cuda.lib'] if is_win else None # '/NODEFAULTLIB:LIBCMT.LIB'
-upfirdn2d_op = load('upfirdn2d', sources=['op/upfirdn2d.cpp', 'op/upfirdn2d_kernel.cu'], extra_ldflags=ldflags)
-
+# Try loading precompiled, otherwise compile on the fly
+try:
+    import upfirdn2d_op
+except ModuleNotFoundError as e:
+    ldflags = ['c10_cuda.lib'] if platform.system() == 'Windows' else None
+    upfirdn2d_op = load('upfirdn2d', sources=['op/upfirdn2d.cpp', 'op/upfirdn2d_kernel.cu'], extra_ldflags=ldflags)
 
 class UpFirDn2dBackward(Function):
     @staticmethod
