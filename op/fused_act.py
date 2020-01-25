@@ -6,17 +6,20 @@ from torch import nn
 from torch.autograd import Function
 from torch.utils.cpp_extension import load
 
-ldflags = ['c10_cuda.lib'] if platform.system() == 'Windows' else None
-
-module_path = os.path.dirname(__file__)
-fused = load(
-    'fused',
-    sources=[
-        os.path.join(module_path, 'fused_bias_act.cpp'),
-        os.path.join(module_path, 'fused_bias_act_kernel.cu'),
-    ],
-    extra_ldflags=ldflags
-)
+# Try loading precompiled, otherwise compile on the fly
+try:
+    import fused
+except ModuleNotFoundError as e:
+    ldflags = ['c10_cuda.lib'] if platform.system() == 'Windows' else None
+    module_path = os.path.dirname(__file__)
+    fused = load(
+        'fused',
+        sources=[
+            os.path.join(module_path, 'fused_bias_act.cpp'),
+            os.path.join(module_path, 'fused_bias_act_kernel.cu'),
+        ],
+        extra_ldflags=ldflags
+    )
 
 
 class FusedLeakyReLUFunctionBackward(Function):

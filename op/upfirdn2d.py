@@ -6,18 +6,20 @@ from torch.nn import functional as F
 from torch.autograd import Function
 from torch.utils.cpp_extension import load
 
-ldflags = ['c10_cuda.lib'] if platform.system() == 'Windows' else None
-
-module_path = os.path.dirname(__file__)
-upfirdn2d_op = load(
-    "upfirdn2d",
-    sources=[
-        os.path.join(module_path, "upfirdn2d.cpp"),
-        os.path.join(module_path, "upfirdn2d_kernel.cu"),
-    ],
-    extra_ldflags=ldflags
-)
-
+# Try loading precompiled, otherwise compile on the fly
+try:
+    import upfirdn2d_op
+except ModuleNotFoundError as e:
+    ldflags = ['c10_cuda.lib'] if platform.system() == 'Windows' else None
+    module_path = os.path.dirname(__file__)
+    upfirdn2d_op = load(
+        "upfirdn2d",
+        sources=[
+            os.path.join(module_path, "upfirdn2d.cpp"),
+            os.path.join(module_path, "upfirdn2d_kernel.cu"),
+        ],
+        extra_ldflags=ldflags
+    )
 
 class UpFirDn2dBackward(Function):
     @staticmethod
