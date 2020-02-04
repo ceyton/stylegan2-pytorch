@@ -488,10 +488,10 @@ class Generator(nn.Module):
         inject_index=None,
         truncation=1,
         truncation_latent=None,
-        input_is_latent=False,
+        input_is_w=False,
         noise=None,
     ):
-        if not input_is_latent:
+        if not input_is_w:
             styles = [self.style(s) for s in styles]
 
         if noise is None:
@@ -507,12 +507,12 @@ class Generator(nn.Module):
 
             styles = style_t
 
-        if len(styles) < 2:
+        if len(styles) == 1:
+            # One global latent
             inject_index = self.n_latent
-
-            latent = self.strided_style(styles[0].unsqueeze(1).repeat(1, inject_index, 1))
-
-        else:
+            latent = self.strided_style(styles[0].unsqueeze(1).repeat(1, inject_index, 1)) # [N, 18, 512]
+        elif len(styles) == 2:
+            # Latent mixing with two latents
             if inject_index is None:
                 inject_index = random.randint(1, self.n_latent - 1)
 
@@ -520,6 +520,11 @@ class Generator(nn.Module):
             latent2 = styles[1].unsqueeze(1).repeat(1, self.n_latent - inject_index, 1)
 
             latent = self.strided_style(torch.cat([latent, latent2], 1))
+        else:
+            # One latent per layer
+            assert len(styles) == self.n_latent, f'Expected {self.n_latents} latents, got {len(styles)}'
+            styles = torch.stack(styles, dim=1) # [N, 18, 512]
+            latent = self.strided_style(styles)
 
         out = self.input(latent)
         out = self.conv1(out, latent[:, 0], noise=noise[0])
