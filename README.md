@@ -35,7 +35,9 @@ For example, if you cloned repositories in ~/stylegan2 and downloaded stylegan2-
 
 > python convert_weight.py --repo ~/stylegan2 stylegan2-ffhq-config-f.pkl
 
-This will create converted stylegan2-ffhq-config-f.pt file.  
+This will create converted stylegan2-ffhq-config-f.pt file.
+
+If using GCC, you might have to set `-D_GLIBCXX_USE_CXX11_ABI=1` in `~/stylegan2/dnnlib/tflib/custom_ops.py`.
 
 ### Generate samples
 
