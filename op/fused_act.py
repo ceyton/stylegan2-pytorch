@@ -4,6 +4,7 @@ import platform
 import torch
 from torch import nn
 from torch.autograd import Function
+import torch.nn.functional as F
 from torch.utils.cpp_extension import load
 
 # Try loading precompiled, otherwise compile on the fly
@@ -89,4 +90,9 @@ class FusedLeakyReLU(nn.Module):
 
 
 def fused_leaky_relu(input, bias, negative_slope=0.2, scale=2 ** 0.5):
-    return FusedLeakyReLUFunction.apply(input, bias, negative_slope, scale)
+    if input.device.type == 'cpu':
+        return scale * F.leaky_relu(
+            input + bias.view((1, -1)+(1,)*(input.ndim-2)), negative_slope=negative_slope
+        )
+    else:
+        return FusedLeakyReLUFunction.apply(input, bias, negative_slope, scale)
