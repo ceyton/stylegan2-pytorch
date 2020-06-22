@@ -154,7 +154,9 @@ class EqualLinear(nn.Module):
             out = fused_leaky_relu(out, self.bias * self.lr_mul)
 
         else:
-            out = F.linear(input, self.weight * self.scale, bias=self.bias * self.lr_mul)
+            out = F.linear(
+                input, self.weight * self.scale, bias=self.bias * self.lr_mul
+            )
 
         return out
 
@@ -425,12 +427,19 @@ class Generator(nn.Module):
         self.to_rgb1 = ToRGB(self.channels[4], style_dim, upsample=False)
 
         self.log_size = int(math.log(size, 2))
+        self.num_layers = (self.log_size - 2) * 2 + 1
 
         self.convs = nn.ModuleList()
         self.upsamples = nn.ModuleList()
         self.to_rgbs = nn.ModuleList()
+        self.noises = nn.Module()
 
         in_channel = self.channels[4]
+
+        for layer_idx in range(self.num_layers):
+            res = (layer_idx + 5) // 2
+            shape = [1, 1, 2 ** res, 2 ** res]
+            self.noises.register_buffer(f'noise_{layer_idx}', torch.randn(*shape))
 
         for i in range(3, self.log_size + 1):
             out_channel = self.channels[2 ** i]
@@ -490,12 +499,18 @@ class Generator(nn.Module):
         truncation_latent=None,
         input_is_w=False,
         noise=None,
+        randomize_noise=True,
     ):
         if not input_is_w:
             styles = [self.style(s) for s in styles]
 
         if noise is None:
-            noise = [None] * (2 * (self.log_size - 2) + 1)
+            if randomize_noise:
+                noise = [None] * self.num_layers
+            else:
+                noise = [
+                    getattr(self.noises, f'noise_{i}') for i in range(self.num_layers)
+                ]
 
         if truncation < 1:
             style_t = []
@@ -510,7 +525,13 @@ class Generator(nn.Module):
         if len(styles) == 1:
             # One global latent
             inject_index = self.n_latent
-            latent = self.strided_style(styles[0].unsqueeze(1).repeat(1, inject_index, 1)) # [N, 18, 512]
+
+            if styles[0].ndim < 3:
+                latent = styles[0].unsqueeze(1).repeat(1, inject_index, 1)
+
+            else:
+                latent = styles[0]
+
         elif len(styles) == 2:
             # Latent mixing with two latents
             if inject_index is None:
@@ -532,17 +553,14 @@ class Generator(nn.Module):
         skip = self.to_rgb1(out, latent[:, 1])
 
         i = 1
-        noise_i = 1
-
-        for conv1, conv2, to_rgb in zip(
-            self.convs[::2], self.convs[1::2], self.to_rgbs
+        for conv1, conv2, noise1, noise2, to_rgb in zip(
+            self.convs[::2], self.convs[1::2], noise[1::2], noise[2::2], self.to_rgbs
         ):
-            out = conv1(out, latent[:, i], noise=noise[noise_i])
-            out = conv2(out, latent[:, i + 1], noise=noise[noise_i + 1])
+            out = conv1(out, latent[:, i], noise=noise1)
+            out = conv2(out, latent[:, i + 1], noise=noise2)
             skip = to_rgb(out, latent[:, i + 2], skip)
 
             i += 2
-            noise_i += 2
 
         image = skip
 

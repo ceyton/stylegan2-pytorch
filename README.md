@@ -6,6 +6,13 @@ Implementation of Analyzing and Improving the Image Quality of StyleGAN (https:/
 
 I have tried to match official implementation as close as possible, but maybe there are some details I missed. So please use this implementation with care.
 
+## Requirements
+
+I have tested on:
+
+* PyTorch 1.3.1
+* CUDA 10.1/10.2
+
 ## Usage
 
 First create lmdb datasets:
@@ -36,21 +43,31 @@ If using GCC, you might have to set `-D_GLIBCXX_USE_CXX11_ABI=1` in `~/stylegan2
 
 > python generate.py --sample N_FACES --pics N_PICS --ckpt PATH_CHECKPOINT  
 
-You should change your size (--size 256 for example) if you train with another dimension.    
+You should change your size (--size 256 for example) if you train with another dimension.   
+
+### Project images to latent spaces
+
+> python projector.py --ckpt [CHECKPOINT] --size [GENERATOR_OUTPUT_SIZE] FILE1 FILE2 ...
+
+## Pretrained Checkpoints
+
+[Link](https://drive.google.com/open?id=1PQutd-JboOCOZqmd95XWxWrO8gGEvRcO)
+
+I have trained the 256px model on FFHQ 550k iterations. I got FID about 4.5. Maybe data preprocessing, resolution, training loop could made this difference, but currently I don't know the exact reason of FID differences.
 
 ## Samples
 
-![Sample with truncation](sample.png)
+![Sample with truncation](doc/sample.png)
 
 At 110,000 iterations. (trained on 3.52M images)
 
 ### Samples from converted weights
 
-![Sample from FFHQ](stylegan2-ffhq-config-f.png)
+![Sample from FFHQ](doc/stylegan2-ffhq-config-f.png)
 
 Sample from FFHQ (1024px)
 
-![Sample from LSUN Church](stylegan2-church-config-f.png)
+![Sample from LSUN Church](doc/stylegan2-church-config-f.png)
 
 Sample from LSUN Church (256px)
 
