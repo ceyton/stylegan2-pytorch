@@ -6,20 +6,14 @@ from torch.nn import functional as F
 from torch.autograd import Function
 from torch.utils.cpp_extension import load
 
-# Try loading precompiled, otherwise compile on the fly
+use_fallback = False
+
+# Try loading precompiled, otherwise use native fallback
 try:
     import upfirdn2d_op
 except ModuleNotFoundError as e:
-    ldflags = ['c10_cuda.lib'] if platform.system() == 'Windows' else None
-    module_path = os.path.dirname(__file__)
-    upfirdn2d_op = load(
-        "upfirdn2d",
-        sources=[
-            os.path.join(module_path, "upfirdn2d.cpp"),
-            os.path.join(module_path, "upfirdn2d_kernel.cu"),
-        ],
-        extra_ldflags=ldflags
-    )
+    print('StyleGAN2: Optimized CUDA op UpFirDn2d not available, using native PyTorch fallback.')
+    use_fallback = True
 
 class UpFirDn2dBackward(Function):
     @staticmethod
@@ -148,11 +142,10 @@ class UpFirDn2d(Function):
 
 
 def upfirdn2d(input, kernel, up=1, down=1, pad=(0, 0)):
-    if input.device.type == "cpu":
+    if use_fallback or input.device.type == "cpu":
         out = upfirdn2d_native(
             input, kernel, up, up, down, down, pad[0], pad[1], pad[0], pad[1]
         )
-
     else:
         out = UpFirDn2d.apply(
             input, kernel, (up, up), (down, down), (pad[0], pad[1], pad[0], pad[1])
