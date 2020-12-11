@@ -31,6 +31,9 @@ train.py supports Weights & Biases logging. If you want to use it, add --wandb a
 
 You need to clone official repositories, (https://github.com/NVlabs/stylegan2) as it is requires for load official checkpoints.
 
+Next, create a conda environment with TF-GPU and Torch-CPU (using GPU for both results in CUDA version mismatches):<br>
+`conda create -n tf_torch python=3.7 requests tensorflow-gpu=1.14 cudatoolkit=10.0 numpy=1.14 pytorch=1.6 torchvision cpuonly -c pytorch`
+
 For example, if you cloned repositories in ~/stylegan2 and downloaded stylegan2-ffhq-config-f.pkl, You can convert it like this:
 
 > python convert_weight.py --repo ~/stylegan2 stylegan2-ffhq-config-f.pkl
