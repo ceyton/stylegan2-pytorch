@@ -247,7 +247,11 @@ if __name__ == '__main__':
     name = os.path.splitext(os.path.basename(args.path))[0]
     outpath = os.path.join(os.getcwd(), f'{name}.pt')
     print('Saving', outpath)
-    torch.save(ckpt, outpath)
+    try:
+        torch.save(ckpt, outpath, _use_new_zipfile_serialization=False)
+    except TypeError:
+        torch.save(ckpt, outpath)
+    
 
     print('Generating TF-Torch comparison images')
     batch_size = {256: 8, 512: 4, 1024: 2}
