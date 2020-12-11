@@ -198,7 +198,8 @@ def fill_statedict(state_dict, vars, size):
 
 
 if __name__ == '__main__':
-    device = 'cuda'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print('Using PyTorch device', device)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--repo', type=str, required=True)
@@ -244,10 +245,13 @@ if __name__ == '__main__':
         ckpt['d'] = d_state
 
     name = os.path.splitext(os.path.basename(args.path))[0]
-    torch.save(ckpt, name + '.pt')
+    outpath = os.path.join(os.getcwd(), f'{name}.pt')
+    print('Saving', outpath)
+    torch.save(ckpt, outpath)
 
-    batch_size = {256: 16, 512: 9, 1024: 4}
-    n_sample = batch_size.get(size, 25)
+    print('Generating TF-Torch comparison images')
+    batch_size = {256: 8, 512: 4, 1024: 2}
+    n_sample = batch_size.get(size, 4)
 
     g = g.to(device)
 
@@ -260,9 +264,7 @@ if __name__ == '__main__':
             truncation_latent=latent_avg.to(device),
         )
 
-    Gs_kwargs = dnnlib.EasyDict()
-    Gs_kwargs.randomize_noise = False
-    img_tf = g_ema.run(z, None, **Gs_kwargs)
+    img_tf = g_ema.run(z, None, randomize_noise=False)
     img_tf = torch.from_numpy(img_tf).to(device)
 
     img_diff = ((img_pt + 1) / 2).clamp(0.0, 1.0) - ((img_tf.to(device) + 1) / 2).clamp(
@@ -273,4 +275,5 @@ if __name__ == '__main__':
     utils.save_image(
         img_concat, name + '.png', nrow=n_sample, normalize=True, range=(-1, 1)
     )
+    print('Done')
 
