@@ -90,7 +90,8 @@ def g_path_regularize(fake_img, latents, mean_path_length, decay=0.01):
     )
     path_lengths = torch.sqrt(grad.pow(2).sum(2).mean(1))
 
-    path_mean = mean_path_length + decay * (path_lengths.mean() - mean_path_length)
+    path_mean = mean_path_length + decay * \
+        (path_lengths.mean() - mean_path_length)
 
     path_penalty = (path_lengths - path_mean).pow(2).mean()
 
@@ -120,13 +121,14 @@ def set_grad_none(model, targets):
             p.grad = None
 
 
-def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device):
+def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device, ckpt_save_dir):
     loader = sample_data(loader)
 
     pbar = range(args.iter)
 
     if get_rank() == 0:
-        pbar = tqdm(pbar, initial=args.start_iter, dynamic_ncols=True, smoothing=0.01)
+        pbar = tqdm(pbar, initial=args.start_iter,
+                    dynamic_ncols=True, smoothing=0.01)
 
     mean_path_length = 0
 
@@ -187,7 +189,8 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
             r1_loss = d_r1_loss(real_pred, real_img)
 
             discriminator.zero_grad()
-            (args.r1 / 2 * r1_loss * args.d_reg_every + 0 * real_pred[0]).backward()
+            (args.r1 / 2 * r1_loss * args.d_reg_every +
+             0 * real_pred[0]).backward()
 
             d_optim.step()
 
@@ -211,7 +214,8 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
         if g_regularize:
             path_batch_size = max(1, args.batch // args.path_batch_shrink)
-            noise = mixing_noise(path_batch_size, args.latent, args.mixing, device)
+            noise = mixing_noise(
+                path_batch_size, args.latent, args.mixing, device)
             fake_img, latents = generator(noise, return_latents=True)
 
             path_loss, mean_path_length, path_lengths = g_path_regularize(
@@ -281,7 +285,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                         range=(-1, 1),
                     )
 
-            if i % 10000 == 0:
+            if i % 2500 == 0:
                 torch.save(
                     {
                         "g": g_module.state_dict(),
@@ -290,7 +294,7 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
                         "g_optim": g_optim.state_dict(),
                         "d_optim": d_optim.state_dict(),
                     },
-                    f"checkpoint/{str(i).zfill(6)}.pt",
+                    f"{ckpt_save_dir}/{str(i).zfill(6)}.pt",
                 )
 
 
@@ -315,6 +319,7 @@ if __name__ == "__main__":
     parser.add_argument("--channel_multiplier", type=int, default=2)
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--local_rank", type=int, default=0)
+    parser.add_argument("--ckpt_save_dir", type=str, default="checkpoint")
 
     args = parser.parse_args()
 
@@ -323,7 +328,8 @@ if __name__ == "__main__":
 
     if args.distributed:
         torch.cuda.set_device(args.local_rank)
-        torch.distributed.init_process_group(backend="nccl", init_method="env://")
+        torch.distributed.init_process_group(
+            backend="nccl", init_method="env://")
         synchronize()
 
     args.latent = 512
@@ -395,7 +401,8 @@ if __name__ == "__main__":
         [
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True),
+            transforms.Normalize(
+                (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True),
         ]
     )
 
@@ -403,11 +410,13 @@ if __name__ == "__main__":
     loader = data.DataLoader(
         dataset,
         batch_size=args.batch,
-        sampler=data_sampler(dataset, shuffle=True, distributed=args.distributed),
+        sampler=data_sampler(dataset, shuffle=True,
+                             distributed=args.distributed),
         drop_last=True,
     )
 
     if get_rank() == 0 and wandb is not None and args.wandb:
         wandb.init(project="stylegan 2")
 
-    train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device)
+    train(args, loader, generator, discriminator,
+          g_optim, d_optim, g_ema, device, args.ckpt_save_dir)
